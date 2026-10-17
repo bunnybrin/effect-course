@@ -8,9 +8,9 @@ afterEach(() => server.resetHandlers())
 afterAll(() => server.close())
 
 
-const TestConfigProvider = ConfigProvider.fromUnknown(
-  new Map([["BASE_URL", "http://localhost:3000"]])
-);
+const TestConfigProvider = ConfigProvider.fromUnknown({
+  BASE_URL: "http://localhost:3000",
+});
 
 const ConfigProviderLayer = ConfigProvider.layer(TestConfigProvider);
 const MainLayer = PokeApi.Live.pipe(Layer.provide(ConfigProviderLayer));
