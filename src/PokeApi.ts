@@ -1,50 +1,40 @@
 import { FetchError, JsonError } from './errors.ts'
 import { Pokemon } from './schemas.ts'
-import { Config, Context, Effect, Schema } from 'effect'
+import { Array, Config, Context, Effect, Schema } from 'effect'
 import type { ConfigError } from 'effect/Config'
 import type { SchemaError } from 'effect/Schema'
 
-interface PokeApiImpl {
-  readonly getPokemon: Effect.Effect<
-    Pokemon,
-    FetchError | JsonError | SchemaError | ConfigError
-  >;
-}
+const make = {
+  getPokemon: Effect.gen(function* () {
+    const pokemonCollection = yield* PokemonCollection;
+    const buildPokeApiUrl = yield* BuildPokeApiUrl;
+
+    const requestUrl = buildPokeApiUrl({ name: pokemonCollection[0] });
+
+    const response = yield* Effect.tryPromise({
+      try: () => fetch(requestUrl),
+      catch: () => new FetchError(),
+    });
+
+    if (!response.ok) {
+      return yield* new FetchError();
+    }
+
+    const json = yield* Effect.tryPromise({
+      try: () => response.json(),
+      catch: () => new JsonError(),
+    });
+
+    return Schema.decodeUnknownSync(Pokemon)(json);
+  }),
+};
 
 export class PokeApi extends Context.Service<
   PokeApi,
-  PokeApiImpl
+  typeof make
 >()('PokeApi') {
 
-  static readonly Live = PokeApi.of({
-    getPokemon: Effect.gen(function* () {
-      const fetchRequest = (baseUrl: string) =>
-        Effect.tryPromise({
-          try: () => fetch(`${baseUrl}/api/v2/pokemon/garchomp/`),
-          catch: () => new FetchError(),
-        })
-
-      const jsonResponse = (response: Response) =>
-        Effect.tryPromise({
-          try: () => response.json(),
-          catch: () => new JsonError(),
-        })
-
-      const decodePokemon = Schema.decodeUnknownSync(Pokemon)
-
-
-      const baseUrl = yield* Config.NonEmptyString('BASE_URL')
-      const response = yield* fetchRequest(baseUrl)
-      if (!response.ok) {
-        return yield* new FetchError()
-      }
-
-      const json = yield* jsonResponse(response)
-
-      return decodePokemon(json)
-    }),
-  })
-
+  static readonly Live = PokeApi.of(make)
 
   static readonly Test = PokeApi.of({
     getPokemon: Effect.succeed({
@@ -54,5 +44,33 @@ export class PokeApi extends Context.Service<
       order: 1,
       name: 'myname',
     }),
+  })
+}
+
+
+export class PokemonCollection extends Context.Service<
+  PokemonCollection,
+  Array.NonEmptyArray<string>
+>()('PokemonCollection') {
+  static readonly Live = PokemonCollection.of(['staryu', 'perrserker', 'flaaffy'])
+}
+
+export class BuildPokeApiUrl extends Context.Service<
+  BuildPokeApiUrl,
+  (props: { name: string }) => string
+>()('BuildPokeApiUrl') {
+  static readonly Live = Effect.gen(function* () {
+    const pokeApiUrl = yield* PokeApiUrl
+    return BuildPokeApiUrl.of(({ name }) => `${pokeApiUrl}/${name}`)
+  })
+}
+
+export class PokeApiUrl extends Context.Service<
+  PokeApiUrl,
+  string
+>()('PokeApiUrl') {
+  static readonly Live = Effect.gen(function* () {
+    const baseUrl = yield* Config.NonEmptyString('BASE_URL')
+    return PokeApiUrl.of(`${baseUrl}/api/v2/pokemon`)
   })
 }

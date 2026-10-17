@@ -1,5 +1,5 @@
 import { Effect } from 'effect'
-import { PokeApi } from './PokeApi.ts'
+import { BuildPokeApiUrl, PokeApi, PokeApiUrl, PokemonCollection } from './PokeApi.ts'
 
 
 const program = Effect.gen(function* () {
@@ -7,7 +7,12 @@ const program = Effect.gen(function* () {
   return yield* pokeApi.getPokemon
 })
 
-const runnable = program.pipe(Effect.provideService(PokeApi, PokeApi.Live))
+const runnable = program.pipe(
+  Effect.provideService(PokeApi, PokeApi.Live),
+  Effect.provideService(PokemonCollection, PokemonCollection.Live),
+  Effect.provideServiceEffect(BuildPokeApiUrl, BuildPokeApiUrl.Live),
+  Effect.provideServiceEffect(PokeApiUrl, PokeApiUrl.Live)
+)
 
 const main = runnable.pipe(
   Effect.catchTags({
