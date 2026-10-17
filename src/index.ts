@@ -8,10 +8,7 @@ const program = Effect.gen(function* () {
 
 const MainLayer = Layer.mergeAll(
   PokeApi.Live,
-  PokemonCollection.Live,
-  BuildPokeApiUrl.Live,
-  PokeApiUrl.Live
-);
+)
 
 const runnable = program.pipe(
   Effect.provide(MainLayer),
