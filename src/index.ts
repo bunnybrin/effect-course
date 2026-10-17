@@ -1,17 +1,20 @@
-import { Effect } from 'effect'
+import { Effect, Layer } from 'effect'
 import { BuildPokeApiUrl, PokeApi, PokeApiUrl, PokemonCollection } from './PokeApi.ts'
-
 
 const program = Effect.gen(function* () {
   const pokeApi = yield* PokeApi
   return yield* pokeApi.getPokemon
 })
 
+const MainLayer = Layer.mergeAll(
+  PokeApi.Live,
+  PokemonCollection.Live,
+  BuildPokeApiUrl.Live,
+  PokeApiUrl.Live
+);
+
 const runnable = program.pipe(
-  Effect.provideService(PokeApi, PokeApi.Live),
-  Effect.provideService(PokemonCollection, PokemonCollection.Live),
-  Effect.provideServiceEffect(BuildPokeApiUrl, BuildPokeApiUrl.Live),
-  Effect.provideServiceEffect(PokeApiUrl, PokeApiUrl.Live)
+  Effect.provide(MainLayer),
 )
 
 const main = runnable.pipe(
